@@ -1,5 +1,6 @@
 import sys
-from itertools import combinations
+import time
+from itertools import combinations, cycle
 
 # Initialize the dataset of major presidential and vice-presidential nominees (surnames only)
 elections = [
@@ -65,6 +66,9 @@ elections = [
     {'year': 2024, 'candidates': ['Harris', 'Walz', 'Trump', 'Vance']},
 ]
 
+def spinner():
+    return cycle(['|', '/', '-', '\\'])
+
 def print_header(text):
     print("\n" + "=" * 50)
     print(f" {text} ".center(50, "="))
@@ -93,6 +97,9 @@ def validate_input(args):
         sys.exit(1)
 
 def find_minimal_sets(relevant_elections, verbose):
+    spin = spinner()
+    start_time = time.time()
+
     all_candidates = set()
     for election in relevant_elections:
         all_candidates.update(election['candidates'])
@@ -101,27 +108,66 @@ def find_minimal_sets(relevant_elections, verbose):
         print_subheader("All Candidates Considered")
         print_list(sorted(all_candidates))
     
-    # Pre-compute sets for each election
-    election_sets = [set(election['candidates']) for election in relevant_elections]
+    num_elections = len(relevant_elections)
+    candidate_elections = {candidate: 0 for candidate in all_candidates}
+    for i, election in enumerate(relevant_elections):
+        for candidate in election['candidates']:
+            candidate_elections[candidate] |= (1 << i)
+    
+    all_elections_mask = (1 << num_elections) - 1
+    for candidate in list(candidate_elections.keys()):
+        if any(candidate_elections[candidate] & ~candidate_elections[other] == 0 
+               for other in candidate_elections if other != candidate):
+            del candidate_elections[candidate]
+            all_candidates.remove(candidate)
+    
+    sorted_candidates = sorted(all_candidates, key=lambda c: bin(candidate_elections[c]).count('1'), reverse=True)
     
     def covers_all_elections(candidate_set):
-        return all(any(candidate in election_set for candidate in candidate_set) 
-                   for election_set in election_sets)
+        coverage = 0
+        for candidate in candidate_set:
+            coverage |= candidate_elections[candidate]
+            if coverage == all_elections_mask:
+                return True
+        return False
     
-    # Start with a heuristic: try the most frequent candidates first
-    candidate_frequency = {candidate: sum(1 for election in relevant_elections if candidate in election['candidates'])
-                           for candidate in all_candidates}
-    sorted_candidates = sorted(all_candidates, key=lambda x: candidate_frequency[x], reverse=True)
+    greedy_solution = []
+    uncovered = all_elections_mask
+    for candidate in sorted_candidates:
+        if uncovered & candidate_elections[candidate]:
+            greedy_solution.append(candidate)
+            uncovered &= ~candidate_elections[candidate]
+            if uncovered == 0:
+                break
     
-    for i in range(1, len(sorted_candidates) + 1):
-        for candidate_set in combinations(sorted_candidates, i):
-            if covers_all_elections(candidate_set):
+    if verbose:
+        print_subheader("Greedy Solution Found")
+        print_list(greedy_solution)
+    
+    if len(greedy_solution) <= 3:
+        return greedy_solution
+    
+    best_solution = greedy_solution
+    iteration_count = 0
+    for i in range(1, len(greedy_solution)):
+        for combo in combinations(sorted_candidates, i):
+            iteration_count += 1
+            if iteration_count % 1000 == 0:  # Update spinner every 1000 iterations
+                elapsed_time = time.time() - start_time
+                sys.stdout.write(f"\rSearching for optimal solution... {next(spin)} (Elapsed time: {elapsed_time:.2f}s)")
+                sys.stdout.flush()
+            
+            if covers_all_elections(combo):
+                best_solution = combo
                 if verbose:
-                    print_subheader("Minimal Set Found")
-                    print_list(candidate_set)
-                return candidate_set
+                    print(f"\nBetter Solution Found (size {len(best_solution)})")
+                    print_list(best_solution)
+                break
+        if len(best_solution) == i:
+            break
     
-    return set()  # This should never happen if the data is correct
+    print(f"\nSearch completed in {time.time() - start_time:.2f} seconds.")
+    return list(best_solution)
 
 def analyze_elections(input_year, verbose):
     if not elections:
@@ -148,6 +194,7 @@ def analyze_elections(input_year, verbose):
                     return result
 
     return result
+
 
 def format_output(input_year, relevant_surnames):
     if not relevant_surnames:
