@@ -1,4 +1,5 @@
 import sys
+from collections import defaultdict
 from itertools import combinations
 
 # Initialize the dataset of major presidential and vice-presidential nominees (surnames only)
@@ -101,27 +102,64 @@ def find_minimal_sets(relevant_elections, verbose):
         print_subheader("All Candidates Considered")
         print_list(sorted(all_candidates))
     
-    # Pre-compute sets for each election
-    election_sets = [set(election['candidates']) for election in relevant_elections]
+    # Create a reverse index: for each candidate, list the elections they appear in
+    candidate_elections = defaultdict(set)
+    for i, election in enumerate(relevant_elections):
+        for candidate in election['candidates']:
+            candidate_elections[candidate].add(i)
+    
+    # Remove candidates that are subsets of others
+    for candidate in list(candidate_elections.keys()):
+        if any(candidate_elections[candidate] < candidate_elections[other] 
+               for other in candidate_elections if other != candidate):
+            del candidate_elections[candidate]
+            all_candidates.remove(candidate)
+    
+    # Sort candidates by the number of elections they appear in (descending)
+    sorted_candidates = sorted(all_candidates, key=lambda c: len(candidate_elections[c]), reverse=True)
     
     def covers_all_elections(candidate_set):
-        return all(any(candidate in election_set for candidate in candidate_set) 
-                   for election_set in election_sets)
+        covered = set()
+        for candidate in candidate_set:
+            covered.update(candidate_elections[candidate])
+            if len(covered) == len(relevant_elections):
+                return True
+        return False
     
-    # Start with a heuristic: try the most frequent candidates first
-    candidate_frequency = {candidate: sum(1 for election in relevant_elections if candidate in election['candidates'])
-                           for candidate in all_candidates}
-    sorted_candidates = sorted(all_candidates, key=lambda x: candidate_frequency[x], reverse=True)
+    # Try greedy solution first
+    greedy_solution = []
+    uncovered = set(range(len(relevant_elections)))
+    for candidate in sorted_candidates:
+        if uncovered & candidate_elections[candidate]:
+            greedy_solution.append(candidate)
+            uncovered -= candidate_elections[candidate]
+            if not uncovered:
+                break
     
-    for i in range(1, len(sorted_candidates) + 1):
-        for candidate_set in combinations(sorted_candidates, i):
-            if covers_all_elections(candidate_set):
+    if verbose:
+        print_subheader("Greedy Solution Found")
+        print_list(greedy_solution)
+    
+    # If greedy solution is size 3 or less, it's guaranteed to be optimal
+    if len(greedy_solution) <= 3:
+        return greedy_solution
+    
+    # Otherwise, do an optimized exhaustive search
+    best_solution = greedy_solution
+    for i in range(1, len(greedy_solution)):
+        for combo in combinations(sorted_candidates, i):
+            if len(combo) >= len(best_solution):
+                break
+            if covers_all_elections(combo):
+                best_solution = combo
                 if verbose:
-                    print_subheader("Minimal Set Found")
-                    print_list(candidate_set)
-                return candidate_set
+                    print_subheader(f"Better Solution Found (size {len(best_solution)})")
+                    print_list(best_solution)
+                break
+        if len(best_solution) == i:
+            break
     
-    return set()  # This should never happen if the data is correct
+    return list(best_solution)
 
 def analyze_elections(input_year, verbose):
     if not elections:
