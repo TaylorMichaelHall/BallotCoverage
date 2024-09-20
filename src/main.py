@@ -1,6 +1,7 @@
 import sys
+import time
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, cycle
 
 # Initialize the dataset of major presidential and vice-presidential nominees (surnames only)
 elections = [
@@ -66,6 +67,10 @@ elections = [
     {'year': 2024, 'candidates': ['Harris', 'Walz', 'Trump', 'Vance']},
 ]
 
+
+def spinner():
+    return cycle(['|', '/', '-', '\\'])
+
 def print_header(text):
     print("\n" + "=" * 50)
     print(f" {text} ".center(50, "="))
@@ -94,6 +99,9 @@ def validate_input(args):
         sys.exit(1)
 
 def find_minimal_sets(relevant_elections, verbose):
+    spin = spinner()
+    start_time = time.time()
+
     all_candidates = set()
     for election in relevant_elections:
         all_candidates.update(election['candidates'])
@@ -102,20 +110,17 @@ def find_minimal_sets(relevant_elections, verbose):
         print_subheader("All Candidates Considered")
         print_list(sorted(all_candidates))
     
-    # Create a reverse index: for each candidate, list the elections they appear in
     candidate_elections = defaultdict(set)
     for i, election in enumerate(relevant_elections):
         for candidate in election['candidates']:
             candidate_elections[candidate].add(i)
     
-    # Remove candidates that are subsets of others
     for candidate in list(candidate_elections.keys()):
         if any(candidate_elections[candidate] < candidate_elections[other] 
                for other in candidate_elections if other != candidate):
             del candidate_elections[candidate]
             all_candidates.remove(candidate)
     
-    # Sort candidates by the number of elections they appear in (descending)
     sorted_candidates = sorted(all_candidates, key=lambda c: len(candidate_elections[c]), reverse=True)
     
     def covers_all_elections(candidate_set):
@@ -126,7 +131,6 @@ def find_minimal_sets(relevant_elections, verbose):
                 return True
         return False
     
-    # Try greedy solution first
     greedy_solution = []
     uncovered = set(range(len(relevant_elections)))
     for candidate in sorted_candidates:
@@ -140,25 +144,29 @@ def find_minimal_sets(relevant_elections, verbose):
         print_subheader("Greedy Solution Found")
         print_list(greedy_solution)
     
-    # If greedy solution is size 3 or less, it's guaranteed to be optimal
     if len(greedy_solution) <= 3:
         return greedy_solution
     
-    # Otherwise, do an optimized exhaustive search
     best_solution = greedy_solution
     for i in range(1, len(greedy_solution)):
-        for combo in combinations(sorted_candidates, i):
+        for j, combo in enumerate(combinations(sorted_candidates, i)):
+            if j % 1000 == 0:  # Update spinner every 1000 iterations
+                elapsed_time = time.time() - start_time
+                sys.stdout.write(f"\rSearching for optimal solution... {next(spin)} (Elapsed time: {elapsed_time:.2f}s)")
+                sys.stdout.flush()
+            
             if len(combo) >= len(best_solution):
                 break
             if covers_all_elections(combo):
                 best_solution = combo
                 if verbose:
-                    print_subheader(f"Better Solution Found (size {len(best_solution)})")
+                    print(f"\nBetter Solution Found (size {len(best_solution)})")
                     print_list(best_solution)
                 break
         if len(best_solution) == i:
             break
     
+    print("\nSearch completed.")
     return list(best_solution)
 
 def analyze_elections(input_year, verbose):
@@ -186,6 +194,7 @@ def analyze_elections(input_year, verbose):
                     return result
 
     return result
+
 
 def format_output(input_year, relevant_surnames):
     if not relevant_surnames:
