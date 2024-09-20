@@ -65,6 +65,18 @@ elections = [
     {'year': 2024, 'candidates': ['Harris', 'Walz', 'Trump', 'Vance']},
 ]
 
+def print_header(text):
+    print("\n" + "=" * 50)
+    print(f" {text} ".center(50, "="))
+    print("=" * 50)
+
+def print_subheader(text):
+    print(f"\n--- {text} ---")
+
+def print_list(items):
+    for item in items:
+        print(f"  • {item}")
+
 def validate_input(args):
     if len(args) < 1 or len(args) > 2:
         print("Usage: python script.py <year> [verbose]")
@@ -86,13 +98,15 @@ def find_minimal_sets(relevant_elections, verbose):
         all_candidates.update(election['candidates'])
     
     if verbose:
-        print(f"All candidates: {all_candidates}")
+        print_subheader("All Candidates Considered")
+        print_list(sorted(all_candidates))
     
     for i in range(1, len(all_candidates) + 1):
         for candidate_set in combinations(all_candidates, i):
             if all(any(candidate in election['candidates'] for candidate in candidate_set) for election in relevant_elections):
                 if verbose:
-                    print(f"Minimal set found: {candidate_set}")
+                    print_subheader("Minimal Set Found")
+                    print_list(candidate_set)
                 return candidate_set
     
     return set()  # This should never happen if the data is correct
@@ -104,7 +118,9 @@ def analyze_elections(input_year, verbose):
     relevant_elections = [e for e in elections if e['year'] >= input_year]
     
     if verbose:
-        print(f"Relevant elections: {relevant_elections}")
+        print_subheader("Relevant Elections")
+        for election in relevant_elections:
+            print(f"  • {election['year']}: {', '.join(election['candidates'])}")
     
     if not relevant_elections:
         return []
@@ -137,12 +153,22 @@ def format_output(input_year, relevant_surnames):
 def main(args):
     input_year, verbose = validate_input(args)
     try:
-        relevant_surnames = analyze_elections(input_year, verbose)
         if verbose:
-            print(f"Relevant surnames: {relevant_surnames}")
-        return format_output(input_year, relevant_surnames)
+            print_header(f"Analyzing Presidential Elections Since {input_year}")
+        
+        relevant_surnames = analyze_elections(input_year, verbose)
+        
+        if verbose:
+            print_subheader("Relevant Surnames (Year of First Appearance)")
+            print_list([f"{surname} ({year})" for year, surname in relevant_surnames])
+        
+        result = format_output(input_year, relevant_surnames)
+        
+        if verbose:
+            print_header("Final Result")
+        print(result)
     except ValueError as e:
-        return f"Error: {str(e)}"
+        print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
-    print(main(sys.argv[1:]))
+    main(sys.argv[1:])
