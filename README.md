@@ -45,7 +45,7 @@ python main.py <year> [verbose]
 The script will output a sentence describing the smallest set of surnames. For example:
 
 ```
-Since 1980, at least one of these surnames has appeared on every presidential ballot (in chronological order of first appearance): Bush, Clinton, or Trump.
+Since 1980, at least one of these surnames has appeared on every presidential ballot (in chronological order of first appearance): Bush, Clinton, Biden, or Trump.
 ```
 
 In verbose mode, you'll see additional information about how the script found this answer.
