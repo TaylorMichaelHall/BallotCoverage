@@ -2,6 +2,7 @@ import sys
 import time
 from itertools import combinations, cycle
 import threading
+from math import comb
 
 # Initialize the dataset of major presidential and vice-presidential nominees (surnames only)
 elections = [
@@ -163,14 +164,22 @@ def find_minimal_sets(relevant_elections, verbose, timeout_threshold=30):
 
     best_solution = greedy_solution
     iteration_count = 0
+    total_combinations = sum(comb(len(sorted_candidates), i) for i in range(1, len(greedy_solution)))
+    
+    print(f"\nTotal possible combinations to check: {total_combinations}")
+
     for i in range(1, len(greedy_solution)):
+        combinations_at_level = comb(len(sorted_candidates), i)
+        print(f"\nChecking combinations of size {i} (Total: {combinations_at_level})")
+        
         for combo in combinations(sorted_candidates, i):
             iteration_count += 1
             elapsed_time = time.time() - start_time
 
-            # Update spinner every 1000 iterations and check elapsed time or 'enter' press
+            # Update progress every 1000 iterations
             if iteration_count % 1000 == 0:
-                sys.stdout.write(f"\rSearching for optimal solution...Press Enter to print current best solution {next(spin)} (Elapsed time: {elapsed_time:.2f}s)")
+                progress = (iteration_count / total_combinations) * 100
+                sys.stdout.write(f"\rProgress: {progress:.2f}% | Combinations checked: {iteration_count}/{total_combinations} {next(spin)} (Elapsed time: {elapsed_time:.2f}s)")
                 sys.stdout.flush()
             
             if covers_all_elections(combo):
@@ -189,6 +198,7 @@ def find_minimal_sets(relevant_elections, verbose, timeout_threshold=30):
             break
 
     print(f"\nSearch completed in {time.time() - start_time:.2f} seconds.")
+    print(f"Total combinations checked: {iteration_count}/{total_combinations}")
     return list(best_solution)
 
 def analyze_elections(input_year, verbose):
