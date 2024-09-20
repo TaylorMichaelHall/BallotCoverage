@@ -101,9 +101,21 @@ def find_minimal_sets(relevant_elections, verbose):
         print_subheader("All Candidates Considered")
         print_list(sorted(all_candidates))
     
-    for i in range(1, len(all_candidates) + 1):
-        for candidate_set in combinations(all_candidates, i):
-            if all(any(candidate in election['candidates'] for candidate in candidate_set) for election in relevant_elections):
+    # Pre-compute sets for each election
+    election_sets = [set(election['candidates']) for election in relevant_elections]
+    
+    def covers_all_elections(candidate_set):
+        return all(any(candidate in election_set for candidate in candidate_set) 
+                   for election_set in election_sets)
+    
+    # Start with a heuristic: try the most frequent candidates first
+    candidate_frequency = {candidate: sum(1 for election in relevant_elections if candidate in election['candidates'])
+                           for candidate in all_candidates}
+    sorted_candidates = sorted(all_candidates, key=lambda x: candidate_frequency[x], reverse=True)
+    
+    for i in range(1, len(sorted_candidates) + 1):
+        for candidate_set in combinations(sorted_candidates, i):
+            if covers_all_elections(candidate_set):
                 if verbose:
                     print_subheader("Minimal Set Found")
                     print_list(candidate_set)
