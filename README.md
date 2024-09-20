@@ -61,3 +61,4 @@ No additional libraries are required; the script uses only Python's standard lib
 - The script's election data currently goes up to 2024.
 - The analysis is based on surnames only and includes both presidential and vice-presidential nominees.
 - The script now uses a faster method to find the answer, but it still checks to make sure it's the best possible answer.
+- It can take a very long time to find the optimal solution, especially when searching back over 100 years. Press 'Enter' to return the current best solution during a long search.
